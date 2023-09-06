@@ -1,2 +1,3 @@
 # funfish
-CSUSB Team 4 Code Repository
+Team4 - Implement division using a fish character 
+
