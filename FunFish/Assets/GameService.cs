@@ -2,15 +2,29 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameService : MonoBehaviour
 {
     private string _oldQuestion = "";
+    public int _currentTime = 0; // Number of seconds for the countdown
+    public int _timeCounter = 15;
+    private TextMeshProUGUI _countdownDisplay;
+
     // Start is called before the first frame update
     void Start()
     {
+
+        //_countdownDisplay = GameObject.Find("txtTimer").GetComponent<TextMeshProUGUI>();
+        //_currentTime = _timeCounter;
+
+        var txtScore = GameObject.Find("txtScore").GetComponent<TextMeshProUGUI>();
+        txtScore.text = MyGlobal.getCurrentScore().ToString();
+
         displayNewQuestion();
+        // Start the countdown
+      //  StartCoroutine(CountdownToStart());
     }
 
     // Update is called once per frame
@@ -51,6 +65,8 @@ public class GameService : MonoBehaviour
         _choices = list.ToArray();
         shuffle(_choices);
 
+        MyGlobal.setChoices(_choices);
+
         for (var i = 0; i < 4; i++)
         {
             GameObject.Find("btnAnswer" + i).GetComponent<Image>().color = Color.yellow;
@@ -59,7 +75,7 @@ public class GameService : MonoBehaviour
 
     }
 
-    public void showCorrectAnswer()
+    public void highlightCorrectAnswer()
     {
         for (var i = 0; i < 4; i++)
         {
@@ -70,21 +86,20 @@ public class GameService : MonoBehaviour
                 break;
             }
         }
+
+        GameObject.Find("txtQuestion").GetComponent<TextMeshProUGUI>().text = MyGlobal.getFirstNumber() + " ÷ " + MyGlobal.getSecondNumber() + " = " + MyGlobal.getCurrentAnswer();
+
     }
 
     public void incSlider()
     {
+        incScore();
         var slider = GameObject.Find("slider").GetComponent<Slider>();
+        slider.value = slider.value + 1;
         if (slider.value >= slider.maxValue)
         {
-            slider.value = slider.minValue;
+            MyGlobal.gotoCompleted();
         }
-        else
-        {
-            slider.value = slider.value + 1;
-        }
-
-        incScore();
     }
 
 
@@ -94,6 +109,9 @@ public class GameService : MonoBehaviour
         var score = int.Parse(obj.text);
         score++;
         obj.text = score.ToString();
+        MyGlobal.setCurrentScore(score);
+
+        StartCoroutine(MyGlobal.getDataCoroutine(MyGlobal.getFunFishSaveSettingUrl(), (data) => { }));
     }
 
     private string getRandomEquation()
@@ -131,7 +149,10 @@ public class GameService : MonoBehaviour
             }
         }
 
+        MyGlobal.setFirstNumber(dividend);
+        MyGlobal.setSecondNumber(divisor);
         MyGlobal.setCurrentAnswer(dividend / divisor);
+
         return $"{dividend} ÷ {divisor} =";
     }
 
@@ -152,9 +173,71 @@ public class GameService : MonoBehaviour
         if (tmp != null)
         {
             int value = int.Parse(tmp.text);
+            if (value == MyGlobal.getCurrentAnswer())
+            {
+                MyGlobal.playCorrect();
 
-            //Debug.Log("Clicked button with value: " + value);
+                throwBall();
+                incSlider();
+                displayNewQuestion();
+            }
+            else
+            {
+                MyGlobal.playWrong();
+
+                highlightCorrectAnswer();
+                DelayedAction(1.4f, () => { displayNewQuestion(); });
+            }
         }
     }
+
+    public void throwBall()
+    {
+        GameObject otherObject = GameObject.Find("Player");
+        if (otherObject != null)
+        {
+            var obj = otherObject.GetComponent<PlayerController>();
+            if (obj != null)
+            {
+                obj.throwBubble();
+            }
+        }
+    }
+    private void DelayedAction(float delaySeconds, System.Action callback)
+    {
+        StartCoroutine(DelayCoroutine(delaySeconds, callback));
+    }
+
+
+    private IEnumerator DelayCoroutine(float delaySeconds, System.Action callback)
+    {
+        // Wait for the specified number of seconds
+        yield return new WaitForSeconds(delaySeconds);
+
+        // Invoke the callback function after the delay
+        callback?.Invoke();
+    }
+
+
+    //IEnumerator CountdownToStart()
+    //{
+    //    while (_currentTime > 0)
+    //    {
+    //        // Display the time remaining
+    //        _countdownDisplay.text = _currentTime.ToString();
+
+    //        yield return new WaitForSeconds(1f); // wait for a second
+
+    //        _currentTime--; // decrement the countdown
+    //    }
+
+    //    // When countdown reaches zero, you might want to start the game, or trigger some event.
+    //    // countdownDisplay.text = "GO!"; // For example, indicating that it's time to start
+
+    //    // Add whatever you want to happen after the countdown ends
+    //    // StartGame(); or any other custom method
+    //    // SceneManager.LoadScene("Failed");
+    //    MyGlobal.gotoFailedScreen();
+    //}
 
 }
